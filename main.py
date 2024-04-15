@@ -1,11 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
-from Crypto.Cipher import AES, PKCS1_OAEP
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
-from Crypto.Hash import SHA256
+from Crypto.Cipher import AES, PKCS1_OAEP, DES, ARC4
+from Crypto.PublicKey import RSA, ElGamal, DSA, ECC
+from Crypto.Signature import PKCS1_v1_5, DSS
+from Crypto.Hash import SHA256, SHA1, MD5
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
+from os import urandom
 
 class CryptographyApp:
     def __init__(self, master):
@@ -34,6 +35,11 @@ class CryptographyApp:
         self.label_symmetric = tk.Label(self.symmetric_frame, text="Choose a file:")
         self.label_symmetric.pack()
 
+        self.algo_label_symmetric = tk.Label(self.symmetric_frame, text="Encryption Algorithm:")
+        self.algo_label_symmetric.pack()
+        self.algo_combobox_symmetric = ttk.Combobox(self.symmetric_frame, values=["AES", "DES", "RC4"])
+        self.algo_combobox_symmetric.pack()
+
         self.encrypt_button = tk.Button(self.symmetric_frame, text="Encrypt File", command=self.encrypt_file)
         self.encrypt_button.pack()
 
@@ -43,6 +49,11 @@ class CryptographyApp:
     def setup_asymmetric_frame(self):
         self.label_asymmetric = tk.Label(self.asymmetric_frame, text="Choose a file:")
         self.label_asymmetric.pack()
+
+        self.algo_label_asymmetric = tk.Label(self.asymmetric_frame, text="Encryption Algorithm:")
+        self.algo_label_asymmetric.pack()
+        self.algo_combobox_asymmetric = ttk.Combobox(self.asymmetric_frame, values=["RSA", "ElGamal", "DSA"])
+        self.algo_combobox_asymmetric.pack()
 
         self.encrypt_button = tk.Button(self.asymmetric_frame, text="Encrypt File", command=self.encrypt_asymmetric)
         self.encrypt_button.pack()
@@ -54,6 +65,11 @@ class CryptographyApp:
         self.label_signature = tk.Label(self.signature_frame, text="Choose a file:")
         self.label_signature.pack()
 
+        self.algo_label_signature = tk.Label(self.signature_frame, text="Signature Algorithm:")
+        self.algo_label_signature.pack()
+        self.algo_combobox_signature = ttk.Combobox(self.signature_frame, values=["RSA", "DSA", "ECDSA"])
+        self.algo_combobox_signature.pack()
+
         self.sign_button = tk.Button(self.signature_frame, text="Sign File", command=self.sign_file)
         self.sign_button.pack()
 
@@ -64,34 +80,68 @@ class CryptographyApp:
         self.label_hash = tk.Label(self.hash_frame, text="Choose a file:")
         self.label_hash.pack()
 
+        self.algo_label_hash = tk.Label(self.hash_frame, text="Hash Algorithm:")
+        self.algo_label_hash.pack()
+        self.algo_combobox_hash = ttk.Combobox(self.hash_frame, values=["SHA-256", "SHA-1", "MD5"])
+        self.algo_combobox_hash.pack()
+
         self.hash_button = tk.Button(self.hash_frame, text="Compute Hash", command=self.compute_hash)
         self.hash_button.pack()
 
     def encrypt_file(self):
         filename = filedialog.askopenfilename()
-        self.key = get_random_bytes(16)
-        self.iv = get_random_bytes(16)
+        algorithm = self.algo_combobox_symmetric.get()
+
+        if algorithm == "AES":
+            key = get_random_bytes(16)
+            iv = get_random_bytes(16)
+            cipher = AES.new(key, AES.MODE_CBC, iv)
+        elif algorithm == "DES":
+            key = get_random_bytes(8)
+            iv = get_random_bytes(8)
+            cipher = DES.new(key, DES.MODE_CBC, iv)
+        elif algorithm == "RC4":
+            key = get_random_bytes(16)
+            cipher = ARC4.new(key)
 
         with open(filename, "rb") as f:
             plaintext = f.read()
 
-        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
         ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
 
         with open("encrypted.txt", "wb") as f:
             f.write(ciphertext)
 
         with open("key.txt", "wb") as f:
-            f.write(self.key)
+            f.write(key)
+
+        if algorithm in ("AES", "DES"):
+            with open("iv.txt", "wb") as f:
+                f.write(iv)
 
         tk.messagebox.showinfo("Success", "File encrypted successfully")
 
     def decrypt_file(self):
         filename = filedialog.askopenfilename()
+        algorithm = self.algo_combobox_symmetric.get()
+
+        with open("key.txt", "rb") as f:
+            key = f.read()
+
+        if algorithm in ("AES", "DES"):
+            with open("iv.txt", "rb") as f:
+                iv = f.read()
+
+        if algorithm == "AES":
+            cipher = AES.new(key, AES.MODE_CBC, iv)
+        elif algorithm == "DES":
+            cipher = DES.new(key, DES.MODE_CBC, iv)
+        elif algorithm == "RC4":
+            cipher = ARC4.new(key)
+
         with open(filename, "rb") as f:
             ciphertext = f.read()
 
-        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
         plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
 
         with open("decrypted.txt", "wb") as f:
@@ -101,11 +151,21 @@ class CryptographyApp:
 
     def encrypt_asymmetric(self):
         filename = filedialog.askopenfilename()
+        algorithm = self.algo_combobox_asymmetric.get()
+
+        if algorithm == "RSA":
+            key = RSA.generate(2048)
+            cipher = PKCS1_OAEP.new(key)
+        elif algorithm == "ElGamal":
+            key = ElGamal.generate(2048, get_random_bytes)
+            cipher = PKCS1_OAEP.new(key)
+        elif algorithm == "DSA":
+            key = DSA.generate(1024)
+            print(key.export_key())
+            cipher = PKCS1_OAEP.new(key)
+
         with open(filename, "rb") as f:
             plaintext = f.read()
-
-        key = RSA.generate(2048)
-        cipher = PKCS1_OAEP.new(key)
 
         ciphertext = cipher.encrypt(plaintext)
 
@@ -119,11 +179,20 @@ class CryptographyApp:
 
     def decrypt_asymmetric(self):
         filename = filedialog.askopenfilename()
+        algorithm = self.algo_combobox_asymmetric.get()
+
+        with open("key.pem", "rb") as f:
+            key = RSA.import_key(f.read())
+
+        if algorithm == "RSA":
+            cipher = PKCS1_OAEP.new(key)
+        elif algorithm == "ElGamal":
+            cipher = PKCS1_OAEP.new(key)
+        elif algorithm == "DSA":
+            cipher = PKCS1_OAEP.new(key)
+
         with open(filename, "rb") as f:
             ciphertext = f.read()
-
-        key = RSA.import_key(open("key.pem").read())
-        cipher = PKCS1_OAEP.new(key)
 
         plaintext = cipher.decrypt(ciphertext)
 
@@ -134,12 +203,22 @@ class CryptographyApp:
 
     def sign_file(self):
         filename = filedialog.askopenfilename()
-        key = RSA.generate(2048)
+        algorithm = self.algo_combobox_signature.get()
+
+        if algorithm == "RSA":
+            key = RSA.generate(2048)
+            signer = PKCS1_v1_5.new(key)
+        elif algorithm == "DSA":
+            key = DSA.generate(2048, get_random_bytes)
+            signer = PKCS1_v1_5.new(key)
+        elif algorithm == "ECDSA":
+            key = ECC.generate(curve='P-256')
+            signer = PKCS1_v1_5.new(key)
+
         with open(filename, "rb") as f:
             data = f.read()
 
         hash_value = SHA256.new(data)
-        signer = PKCS1_v1_5.new(key)
         signature = signer.sign(hash_value)
 
         with open("signature.txt", "wb") as f:
@@ -152,17 +231,24 @@ class CryptographyApp:
 
     def verify_signature(self):
         filename = filedialog.askopenfilename()
-        with open(filename, "rb") as f:
-            data = f.read()
+        algorithm = self.algo_combobox_signature.get()
 
         with open("key.pem", "rb") as f:
             key = RSA.import_key(f.read())
 
+        with open(filename, "rb") as f:
+            data = f.read()
+
+        if algorithm == "RSA":
+            verifier = PKCS1_v1_5.new(key)
+        elif algorithm == "DSA":
+            verifier = PKCS1_v1_5.new(key)
+        elif algorithm == "ECDSA":
+            verifier = PKCS1_v1_5.new(key)
+
         with open("signature.txt", "rb") as f:
             signature = f.read()
 
-        public_key = key.publickey()
-        verifier = PKCS1_v1_5.new(public_key)
         hash_value = SHA256.new(data)
 
         if verifier.verify(hash_value, signature):
@@ -172,10 +258,17 @@ class CryptographyApp:
 
     def compute_hash(self):
         filename = filedialog.askopenfilename()
+        algorithm = self.algo_combobox_hash.get()
+
         with open(filename, "rb") as f:
             data = f.read()
 
-        hash_value = SHA256.new(data)
+        if algorithm == "SHA-256":
+            hash_value = SHA256.new(data)
+        elif algorithm == "SHA-1":
+            hash_value = SHA1.new(data)
+        elif algorithm == "MD5":
+            hash_value = MD5.new(data)
 
         with open("hash.txt", "wb") as f:
             f.write(hash_value.digest())
