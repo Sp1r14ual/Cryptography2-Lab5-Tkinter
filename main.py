@@ -2,11 +2,10 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from Crypto.Cipher import AES, PKCS1_OAEP, DES, ARC4
 from Crypto.PublicKey import RSA, ElGamal, DSA, ECC
-from Crypto.Signature import PKCS1_v1_5, DSS
-from Crypto.Hash import SHA256, SHA1, MD5
+from Crypto.Signature import DSS, eddsa, pkcs1_15
+from Crypto.Hash import SHA256, SHA1, MD5, SHA512
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
-from os import urandom
 
 class CryptographyApp:
     def __init__(self, master):
@@ -52,7 +51,7 @@ class CryptographyApp:
 
         self.algo_label_asymmetric = tk.Label(self.asymmetric_frame, text="Encryption Algorithm:")
         self.algo_label_asymmetric.pack()
-        self.algo_combobox_asymmetric = ttk.Combobox(self.asymmetric_frame, values=["RSA", "ElGamal", "DSA"])
+        self.algo_combobox_asymmetric = ttk.Combobox(self.asymmetric_frame, values=["RSA"])
         self.algo_combobox_asymmetric.pack()
 
         self.encrypt_button = tk.Button(self.asymmetric_frame, text="Encrypt File", command=self.encrypt_asymmetric)
@@ -67,7 +66,7 @@ class CryptographyApp:
 
         self.algo_label_signature = tk.Label(self.signature_frame, text="Signature Algorithm:")
         self.algo_label_signature.pack()
-        self.algo_combobox_signature = ttk.Combobox(self.signature_frame, values=["RSA", "DSA", "ECDSA"])
+        self.algo_combobox_signature = ttk.Combobox(self.signature_frame, values=["RSA", "DSA"])
         self.algo_combobox_signature.pack()
 
         self.sign_button = tk.Button(self.signature_frame, text="Sign File", command=self.sign_file)
@@ -82,7 +81,7 @@ class CryptographyApp:
 
         self.algo_label_hash = tk.Label(self.hash_frame, text="Hash Algorithm:")
         self.algo_label_hash.pack()
-        self.algo_combobox_hash = ttk.Combobox(self.hash_frame, values=["SHA-256", "SHA-1", "MD5"])
+        self.algo_combobox_hash = ttk.Combobox(self.hash_frame, values=["SHA-512", "SHA-256", "SHA-1", "MD5"])
         self.algo_combobox_hash.pack()
 
         self.hash_button = tk.Button(self.hash_frame, text="Compute Hash", command=self.compute_hash)
@@ -156,13 +155,12 @@ class CryptographyApp:
         if algorithm == "RSA":
             key = RSA.generate(2048)
             cipher = PKCS1_OAEP.new(key)
-        elif algorithm == "ElGamal":
-            key = ElGamal.generate(2048, get_random_bytes)
-            cipher = PKCS1_OAEP.new(key)
-        elif algorithm == "DSA":
-            key = DSA.generate(1024)
-            print(key.export_key())
-            cipher = PKCS1_OAEP.new(key)
+        # elif algorithm == "ElGamal":
+        #     key = ElGamal.generate(1024, get_random_bytes)
+        #     cipher = PKCS1_OAEP.new(key)
+        # elif algorithm == "DSA":
+        #     key = DSA.generate(1024)
+        #     cipher = PKCS1_OAEP.new(key)
 
         with open(filename, "rb") as f:
             plaintext = f.read()
@@ -186,10 +184,10 @@ class CryptographyApp:
 
         if algorithm == "RSA":
             cipher = PKCS1_OAEP.new(key)
-        elif algorithm == "ElGamal":
-            cipher = PKCS1_OAEP.new(key)
-        elif algorithm == "DSA":
-            cipher = PKCS1_OAEP.new(key)
+        # elif algorithm == "ElGamal":
+        #     cipher = PKCS1_OAEP.new(key)
+        # elif algorithm == "DSA":
+        #     cipher = PKCS1_OAEP.new(key)
 
         with open(filename, "rb") as f:
             ciphertext = f.read()
@@ -207,13 +205,13 @@ class CryptographyApp:
 
         if algorithm == "RSA":
             key = RSA.generate(2048)
-            signer = PKCS1_v1_5.new(key)
+            signer = pkcs1_15.new(key)
         elif algorithm == "DSA":
-            key = DSA.generate(2048, get_random_bytes)
-            signer = PKCS1_v1_5.new(key)
-        elif algorithm == "ECDSA":
-            key = ECC.generate(curve='P-256')
-            signer = PKCS1_v1_5.new(key)
+            key = DSA.generate(2048)
+            signer = DSS.new(key, 'fips-186-3')
+        # elif algorithm == "ECC":
+        #     key = ECC.generate(curve='ed25519')
+        #     signer = eddsa.new(key, 'rfc8032')
 
         with open(filename, "rb") as f:
             data = f.read()
@@ -224,8 +222,8 @@ class CryptographyApp:
         with open("signature.txt", "wb") as f:
             f.write(signature)
 
-        with open("key.pem", "wb") as f:
-            f.write(key.export_key())
+        with open("key.txt", "wb") as f:
+            f.write(key.public_key().export_key())
 
         tk.messagebox.showinfo("Success", "File signed successfully")
 
@@ -233,27 +231,33 @@ class CryptographyApp:
         filename = filedialog.askopenfilename()
         algorithm = self.algo_combobox_signature.get()
 
-        with open("key.pem", "rb") as f:
-            key = RSA.import_key(f.read())
+        with open("key.txt", "rb") as f:
+            if algorithm == "RSA":
+                key = RSA.import_key(f.read())
+            elif algorithm == "DSA":
+                key = DSA.import_key(f.read())
+            # elif algorithm == "ECC":
+            #     key = ECC.import_key(f.read())
 
         with open(filename, "rb") as f:
             data = f.read()
 
         if algorithm == "RSA":
-            verifier = PKCS1_v1_5.new(key)
+            verifier = pkcs1_15.new(key)
         elif algorithm == "DSA":
-            verifier = PKCS1_v1_5.new(key)
-        elif algorithm == "ECDSA":
-            verifier = PKCS1_v1_5.new(key)
+            verifier = DSS.new(key, 'fips-186-3')
+        elif algorithm == "ECC":
+            verifier = DSS.new(key, 'fips-186-3')
 
         with open("signature.txt", "rb") as f:
             signature = f.read()
 
         hash_value = SHA256.new(data)
 
-        if verifier.verify(hash_value, signature):
+        try:
+            verifier.verify(hash_value, signature)
             tk.messagebox.showinfo("Success", "Signature is valid")
-        else:
+        except ValueError:
             tk.messagebox.showerror("Error", "Signature is not valid")
 
     def compute_hash(self):
@@ -269,9 +273,11 @@ class CryptographyApp:
             hash_value = SHA1.new(data)
         elif algorithm == "MD5":
             hash_value = MD5.new(data)
+        elif algorithm == "SHA-512":
+            hash_value = SHA512.new(data)
 
-        with open("hash.txt", "wb") as f:
-            f.write(hash_value.digest())
+        with open("hash.txt", "w") as f:
+            f.write(hash_value.hexdigest())
 
         tk.messagebox.showinfo("Success", "Hash computed successfully")
 
