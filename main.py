@@ -154,7 +154,7 @@ class CryptographyApp:
 
         if algorithm == "RSA":
             key = RSA.generate(2048)
-            cipher = PKCS1_OAEP.new(key)
+            cipher = PKCS1_OAEP.new(key.public_key())
 
         with open(filename, "rb") as f:
             plaintext = f.read()
@@ -166,6 +166,9 @@ class CryptographyApp:
 
         with open("key.pem", "wb") as f:
             f.write(key.export_key())
+
+        with open("key_pub.pem", "wb") as f:
+            f.write(key.public_key().export_key())
 
         tk.messagebox.showinfo("Success", "File encrypted successfully")
 
