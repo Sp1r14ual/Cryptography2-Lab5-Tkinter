@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
 from Crypto.Cipher import AES, PKCS1_OAEP, DES, ARC4
-from Crypto.PublicKey import RSA, ElGamal, DSA, ECC
-from Crypto.Signature import DSS, eddsa, pkcs1_15
+from Crypto.PublicKey import RSA, DSA
+from Crypto.Signature import DSS, pkcs1_15
 from Crypto.Hash import SHA256, SHA1, MD5, SHA512
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
@@ -155,12 +155,6 @@ class CryptographyApp:
         if algorithm == "RSA":
             key = RSA.generate(2048)
             cipher = PKCS1_OAEP.new(key)
-        # elif algorithm == "ElGamal":
-        #     key = ElGamal.generate(1024, get_random_bytes)
-        #     cipher = PKCS1_OAEP.new(key)
-        # elif algorithm == "DSA":
-        #     key = DSA.generate(1024)
-        #     cipher = PKCS1_OAEP.new(key)
 
         with open(filename, "rb") as f:
             plaintext = f.read()
@@ -184,10 +178,6 @@ class CryptographyApp:
 
         if algorithm == "RSA":
             cipher = PKCS1_OAEP.new(key)
-        # elif algorithm == "ElGamal":
-        #     cipher = PKCS1_OAEP.new(key)
-        # elif algorithm == "DSA":
-        #     cipher = PKCS1_OAEP.new(key)
 
         with open(filename, "rb") as f:
             ciphertext = f.read()
@@ -209,9 +199,6 @@ class CryptographyApp:
         elif algorithm == "DSA":
             key = DSA.generate(2048)
             signer = DSS.new(key, 'fips-186-3')
-        # elif algorithm == "ECC":
-        #     key = ECC.generate(curve='ed25519')
-        #     signer = eddsa.new(key, 'rfc8032')
 
         with open(filename, "rb") as f:
             data = f.read()
@@ -236,8 +223,6 @@ class CryptographyApp:
                 key = RSA.import_key(f.read())
             elif algorithm == "DSA":
                 key = DSA.import_key(f.read())
-            # elif algorithm == "ECC":
-            #     key = ECC.import_key(f.read())
 
         with open(filename, "rb") as f:
             data = f.read()
