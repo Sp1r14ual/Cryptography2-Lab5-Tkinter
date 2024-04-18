@@ -6,6 +6,7 @@ from Crypto.Signature import DSS, pkcs1_15
 from Crypto.Hash import SHA256, SHA1, MD5, SHA512
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
+from base64 import b64encode, b64decode
 
 class CryptographyApp:
     def __init__(self, master):
@@ -109,14 +110,14 @@ class CryptographyApp:
         ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
 
         with open("encrypted.txt", "wb") as f:
-            f.write(ciphertext)
+            f.write(b64encode(ciphertext))
 
         with open("key.txt", "wb") as f:
-            f.write(key)
+            f.write(b64encode(key))
 
         if algorithm in ("AES", "DES"):
             with open("iv.txt", "wb") as f:
-                f.write(iv)
+                f.write(b64encode(iv))
 
         tk.messagebox.showinfo("Success", "File encrypted successfully")
 
@@ -125,11 +126,11 @@ class CryptographyApp:
         algorithm = self.algo_combobox_symmetric.get()
 
         with open("key.txt", "rb") as f:
-            key = f.read()
+            key = b64decode(f.read())
 
         if algorithm in ("AES", "DES"):
             with open("iv.txt", "rb") as f:
-                iv = f.read()
+                iv = b64decode(f.read())
 
         if algorithm == "AES":
             cipher = AES.new(key, AES.MODE_CBC, iv)
@@ -139,7 +140,7 @@ class CryptographyApp:
             cipher = ARC4.new(key)
 
         with open(filename, "rb") as f:
-            ciphertext = f.read()
+            ciphertext = b64decode(f.read())
 
         plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
 
@@ -162,12 +163,12 @@ class CryptographyApp:
         ciphertext = cipher.encrypt(plaintext)
 
         with open("encrypted.txt", "wb") as f:
-            f.write(ciphertext)
+            f.write(b64encode(ciphertext))
 
-        with open("key.pem", "wb") as f:
+        with open("key.txt", "wb") as f:
             f.write(key.export_key())
 
-        with open("key_pub.pem", "wb") as f:
+        with open("key_pub.txt", "wb") as f:
             f.write(key.public_key().export_key())
 
         tk.messagebox.showinfo("Success", "File encrypted successfully")
@@ -176,14 +177,14 @@ class CryptographyApp:
         filename = filedialog.askopenfilename()
         algorithm = self.algo_combobox_asymmetric.get()
 
-        with open("key.pem", "rb") as f:
+        with open("key.txt", "rb") as f:
             key = RSA.import_key(f.read())
 
         if algorithm == "RSA":
             cipher = PKCS1_OAEP.new(key)
 
         with open(filename, "rb") as f:
-            ciphertext = f.read()
+            ciphertext = b64decode(f.read())
 
         plaintext = cipher.decrypt(ciphertext)
 
@@ -210,10 +211,13 @@ class CryptographyApp:
         signature = signer.sign(hash_value)
 
         with open("signature.txt", "wb") as f:
-            f.write(signature)
+            f.write(b64encode(signature))
 
         with open("key.txt", "wb") as f:
             f.write(key.public_key().export_key())
+
+        with open("key_private.txt", "wb") as f:
+            f.write(key.export_key())
 
         tk.messagebox.showinfo("Success", "File signed successfully")
 
@@ -238,7 +242,7 @@ class CryptographyApp:
             verifier = DSS.new(key, 'fips-186-3')
 
         with open("signature.txt", "rb") as f:
-            signature = f.read()
+            signature = b64decode(f.read())
 
         hash_value = SHA256.new(data)
 
